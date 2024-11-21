@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTF Flag Submission with Leaderboard</title>
+    <style>
+        /* General Styles */
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e90ff, #00c3ff);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            max-width: 90%;
+            padding: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        /* Input and Button Styles */
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #1e90ff;
+            box-shadow: 0 0 10px rgba(30, 144, 255, 0.3);
+        }
+        button {
+            background: #1e90ff;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #00c3ff;
+        }
+
+        /* Message Styles */
+        .message {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            display: none;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .message.success {
+            color: #2d8a2d;
+            background: #d4f4d4;
+        }
+        .message.error {
+            color: #d9534f;
+            background: #f8d7da;
+        }
+
+        /* Scorecard Styles */
+        .scorecard {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f8ff;
+            border: 2px solid #1e90ff;
+            border-radius: 10px;
+            color: #333;
+            font-weight: bold;
+        }
+        .scorecard p {
+            margin: 10px 0;
+        }
+
+        /* Leaderboard Styles */
+        .leaderboard {
+            margin-top: 40px;
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 10px;
+            color: #333;
+            border: 2px solid #1e90ff;
+        }
+        .leaderboard h3 {
+            margin-bottom: 15px;
+        }
+        .leaderboard ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .leaderboard li {
+            padding: 8px 0;
+            font-weight: bold;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="loginContainer">
+        <h1>Welcome to CTF!</h1>
+        <p>Enter your username to start tracking your progress.</p>
+        <div class="input-group">
+            <input type="text" id="usernameInput" placeholder="Enter your username" />
+        </div>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div class="container" id="flagSubmissionContainer" style="display: none;">
+        <h1>CTF Flag Submission</h1>
+        <p>Welcome, <span id="usernameDisplay"></span>! Submit your flags below.</p>
+        <div class="input-group">
+            <input type="text" id="flagInput" placeholder="Enter your flag here" />
+        </div>
+        <button onclick="checkFlag()">Submit</button>
+        <div id="message" class="message"></div>
+
+        <div class="scorecard">
+            <h3>Scorecard</h3>
+            <p>Score: <span id="score">0</span></p>
+            <p>Flags Submitted: <span id="submittedFlags">0</span></p>
+        </div>
+
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <div class="container" id="leaderboardContainer" style="display: none;">
+        <div class="leaderboard">
+            <h3>Top Scorers</h3>
+            <ul id="leaderboardList">
+                <!-- Leaderboard will be dynamically populated -->
+            </ul>
+        </div>
+        <button onclick="backToHome()">Back to Home</button>
+    </div>
+
+    <script>
+        // Correct flags list
+        const correctFlags = ["flag{hello}", "h00k_MixeR_B@T"];
+
+        // Login function
+        function login() {
+            const username = document.getElementById('usernameInput').value.trim();
+            if (username === "") {
+                alert("Username cannot be empty!");
+                return;
+            }
+
+            // Save username to localStorage
+            localStorage.setItem("currentUsername", username);
+
+            // Initialize user score if not already set
+            if (!localStorage.getItem(username)) {
+                localStorage.setItem(username, JSON.stringify({ score: 0, submittedFlags: 0, usedFlags: [] }));
+            }
+
+            // Display flag submission form
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('flagSubmissionContainer').style.display = 'block';
+            document.getElementById('usernameDisplay').textContent = username;
+
+            updateScorecard();
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem("currentUsername");
+            document.getElementById('loginContainer').style.display = 'block';
+            document.getElementById('flagSubmissionContainer').style.display = 'none';
+        }
+
+        // Back to home page
+        function backToHome() {
+            document.getElementById('leaderboardContainer').style.display = 'none';
+            document.getElementById('loginContainer').style.display = 'block';
+        }
+
+        // Update scorecard for the current user
+        function updateScorecard() {
+            const username = localStorage.getItem("currentUsername");
+            const userData = JSON.parse(localStorage.getItem(username));
+
+            document.getElementById('score').textContent = userData.score;
+            document.getElementById('submittedFlags').textContent = userData.submittedFlags;
+        }
+
+        // Update the leaderboard
+        function updateLeaderboard() {
+            let leaderboardList = document.getElementById("leaderboardList");
+            leaderboardList.innerHTML = "";
+
+            let allUsers = [];
+            for (let key in localStorage) {
+                if (key !== "currentUsername") {
+                    let userData = JSON.parse(localStorage.getItem(key));
+                    allUsers.push({ username: key, score: userData.score });
+                }
+            }
+
+            // Sort users by score
+            allUsers.sort((a, b) => b.score - a.score);
+
+            // Show top 3 users
+            allUsers.slice(0, 10).forEach((user, index) => {
+                let listItem = document.createElement("li");
+                listItem.textContent = `${index + 1}. ${user.username} - ${user.score} points`;
+                leaderboardList.appendChild(listItem);
+            });
+        }
+
+        // Check flag submission
+        function checkFlag() {
+            const username = localStorage.getItem("currentUsername");
+            const flagInput = document.getElementById('flagInput').value.trim();
+            const message = document.getElementById('message');
+            const userData = JSON.parse(localStorage.getItem(username));
+
+            // Clear message
+            message.style.display = 'none';
+
+            // Check if flag is correct and not already used
+            if (correctFlags.includes(flagInput) && !userData.usedFlags.includes(flagInput)) {
+                message.textContent = "Congratulations! Your flag is correct.";
+                message.className = "message success";
+
+                // Update score
+                userData.score++;
+                userData.usedFlags.push(flagInput);
+            } else if (userData.usedFlags.includes(flagInput)) {
+                message.textContent = "This flag has already been used.";
+                message.className = "message error";
+            } else {
+                message.textContent = "Incorrect flag. Try again.";
+                message.className = "message error";
+            }
+
+            // Update total submissions
+            userData.submittedFlags++;
+            localStorage.setItem(username, JSON.stringify(userData));
+            updateScorecard();
+
+            // Display message
+            message.style.display = 'block';
+
+            // Update leaderboard after submission
+            updateLeaderboard();
+        }
+
+        // Show leaderboard
+        function showLeaderboard() {
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('flagSubmissionContainer').style.display = 'none';
+            document.getElementById('leaderboardContainer').style.display = 'block';
+
+            // Update leaderboard
+            updateLeaderboard();
+        }
+    </script>
+</body>
+</html>
